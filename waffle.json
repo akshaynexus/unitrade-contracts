@@ -1,0 +1,9 @@
+{
+    "compilerVersion": "0.6.12",
+    "compilerOptions": {
+        "optimizer": {
+          "enabled": true,
+          "runs": 200
+        }
+      }
+}

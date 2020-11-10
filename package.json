@@ -1,0 +1,35 @@
+{
+  "name": "unitrade",
+  "version": "0.1.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "build": "rimraf ./build && waffle",
+    "develop": "npm-run-all -p ganache \"deploy -- --no-wait\"",
+    "deploy": "ts-node ./deploy",
+    "ganache": "dotenv npm run ganache:repeatable",
+    "ganache:repeatable": "ganache-cli --port \"$DEVELOPMENT_BLOCKCHAIN_PORT\" --mnemonic \"$DEVELOPMENT_SEED_PHRASE\"",
+    "test": "export NODE_ENV=test && mocha --timeout 20000 \"test/**/*.test.{js,ts}\" -r ts-node/register/transpile-only  --exit"
+  },
+  "author": "Adam Gall <adam@decentlabs.io>",
+  "license": "ISC",
+  "devDependencies": {
+    "@openzeppelin/contracts": "^3.2.0",
+    "@types/chai": "^4.2.13",
+    "@types/mocha": "^8.0.3",
+    "@uniswap/sdk": "^3.0.3",
+    "@uniswap/v2-core": "^1.0.1",
+    "@uniswap/v2-periphery": "^1.1.0-beta.0",
+    "chai": "^4.2.0",
+    "dotenv": "^8.2.0",
+    "dotenv-cli": "^3.2.0",
+    "ethereum-waffle": "^3.1.1",
+    "ethers": "^5.0.17",
+    "ganache-cli": "^6.12.0",
+    "mocha": "^8.1.3",
+    "npm-run-all": "^4.1.5",
+    "rimraf": "^3.0.2",
+    "ts-node": "^8.10.2",
+    "typescript": "^3.9.7"
+  }
+}
