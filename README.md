@@ -135,3 +135,8 @@ $ npm run build
 ```
 
 If you've got a local development environment running (via `npm run develop`), you'll want to stop and restart that.
+
+## Solidfied security audit report
+
+
+https://github.com/solidified-platform/audits/blob/master/Audit%20Report%20-%20%20Unitrade%20%5B06.10.2020%5D.pdf
