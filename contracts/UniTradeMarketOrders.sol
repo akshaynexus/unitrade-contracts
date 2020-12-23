@@ -172,7 +172,10 @@ contract UniTradeMarketOrders is Ownable, ReentrancyGuard {
             if (burnAmount > 0) {
                 orderBook.incinerator().burn{value: burnAmount}(); //no require
             }
-            orderBook.staker().deposit{value: unitradeFee.sub(burnAmount)}(); //no require
+            uint256 stakeAmount = unitradeFee.sub(burnAmount);
+            if(stakeAmount > 0) {
+                orderBook.staker().deposit{value: stakeAmount}(); //no require
+            }
         }
 
         emit OrderExecuted(_taker, tokenIn, tokenOut, amounts, unitradeFee);
