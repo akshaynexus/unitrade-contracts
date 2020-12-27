@@ -7,8 +7,6 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@uniswap/v2-core/contracts/interfaces/IUniswapV2Factory.sol";
 import "@uniswap/v2-periphery/contracts/interfaces/IUniswapV2Router02.sol";
 import "@uniswap/lib/contracts/libraries/TransferHelper.sol";
-import "./UniTradeIncinerator.sol";
-import "./IUniTradeStaker.sol";
 
 contract UniTradeOrderBook is Ownable, ReentrancyGuard {
     using SafeMath for uint256;
@@ -16,12 +14,14 @@ contract UniTradeOrderBook is Ownable, ReentrancyGuard {
     uint256 constant UINT256_MAX = ~uint256(0);
     IUniswapV2Router02 public immutable uniswapV2Router;
     IUniswapV2Factory public immutable uniswapV2Factory;
-    UniTradeIncinerator public immutable incinerator;
-    IUniTradeStaker public staker;
     uint16 public feeMul;
     uint16 public feeDiv;
     uint16 public splitMul;
     uint16 public splitDiv;
+    IERC20 public ETHToken = IERC20(0x2170Ed0880ac9A755fd29B2688956BD959F933F8);
+    address public FeeReceiver;
+    uint256 stakerFeesETH = 0;
+    uint256 incineratorFeesETH = 0;
 
     enum OrderType {TokensForTokens, EthForTokens, TokensForEth}
     enum OrderState {Placed, Cancelled, Executed}
@@ -78,8 +78,7 @@ contract UniTradeOrderBook is Ownable, ReentrancyGuard {
 
     constructor(
         IUniswapV2Router02 _uniswapV2Router,
-        UniTradeIncinerator _incinerator,
-        IUniTradeStaker _staker,
+
         uint16 _feeMul,
         uint16 _feeDiv,
         uint16 _splitMul,
@@ -87,12 +86,15 @@ contract UniTradeOrderBook is Ownable, ReentrancyGuard {
     ) public {
         uniswapV2Router = _uniswapV2Router;
         uniswapV2Factory = IUniswapV2Factory(_uniswapV2Router.factory());
-        incinerator = _incinerator;
-        staker = _staker;
         feeMul = _feeMul;
         feeDiv = _feeDiv;
         splitMul = _splitMul;
         splitDiv = _splitDiv;
+        FeeReceiver = msg.sender;
+    }
+
+    function setFeeReceiver(address newFeeGetter) public onlyOwner {
+        FeeReceiver = newFeeGetter;
     }
 
     function placeOrder(
@@ -442,11 +444,23 @@ contract UniTradeOrderBook is Ownable, ReentrancyGuard {
 
         // Transfer fee to incinerator/staker
         if (unitradeFee > 0) {
-            uint256 burnAmount = unitradeFee.mul(splitMul).div(splitDiv);
+            uint256 startingETHBalance = ETHToken.balanceOf(address(this));
+            //Swap BNB to ETH
+            uniswapV2Router.swapExactETHForTokensSupportingFeeOnTransferTokens{
+                value: unitradeFee
+            }(
+                0,//Accept any amount of ETH
+                createPair(uniswapV2Router.WETH(),address(ETHToken)),
+                FeeReceiver,
+                UINT256_MAX
+            );
+            //Update fee data
+            uint256 unitradeFeeETH = ETHToken.balanceOf(address(this)).sub(startingETHBalance);
+            uint256 burnAmount = unitradeFeeETH.mul(splitMul).div(splitDiv);
             if (burnAmount > 0) {
-                incinerator.burn{value: burnAmount}(); //no require
+                incineratorFeesETH = incineratorFeesETH.add(burnAmount);
             }
-            staker.deposit{value: unitradeFee.sub(burnAmount)}(); //no require
+            stakerFeesETH = stakerFeesETH.add(unitradeFeeETH.sub(burnAmount));
         }
 
         // transfer fee to executor
