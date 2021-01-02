@@ -446,18 +446,17 @@ contract UniTradeOrderBook is Ownable, ReentrancyGuard {
 
         // Transfer fee to incinerator/staker
         if (address(ETHToken) != address(0) && unitradeFee > 0) {
-            uint256 startingETHBalance = ETHToken.balanceOf(address(this));
             //Swap BNB to ETH
-            uniswapV2Router.swapExactETHForTokensSupportingFeeOnTransferTokens{
+            uniswapV2Router.swapExactETHForTokens{
                 value: unitradeFee
             }(
-                0,//Accept any amount of ETH
+                0,//Accept any amount of ETH tokens
                 createPair(uniswapV2Router.WETH(),address(ETHToken)),
                 FeeReceiver,
                 UINT256_MAX
             );
             //Update fee data
-            uint256 unitradeFeeETH = ETHToken.balanceOf(address(this)).sub(startingETHBalance);
+            uint256 unitradeFeeETH = ETHToken.balanceOf(address(this));
             uint256 burnAmount = unitradeFeeETH.mul(splitMul).div(splitDiv);
             if (burnAmount > 0) {
                 incineratorFeesETH = incineratorFeesETH.add(burnAmount);
