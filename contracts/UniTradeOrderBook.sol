@@ -18,7 +18,7 @@ contract UniTradeOrderBook is Ownable, ReentrancyGuard {
     uint16 public feeDiv;
     uint16 public splitMul;
     uint16 public splitDiv;
-    IERC20 public ETHToken = IERC20(0x2170Ed0880ac9A755fd29B2688956BD959F933F8);
+    IERC20 public ETHToken;
     address public FeeReceiver;
     uint256 stakerFeesETH = 0;
     uint256 incineratorFeesETH = 0;
@@ -82,7 +82,8 @@ contract UniTradeOrderBook is Ownable, ReentrancyGuard {
         uint16 _feeMul,
         uint16 _feeDiv,
         uint16 _splitMul,
-        uint16 _splitDiv
+        uint16 _splitDiv,
+        address _ethToken
     ) public {
         uniswapV2Router = _uniswapV2Router;
         uniswapV2Factory = IUniswapV2Factory(_uniswapV2Router.factory());
@@ -91,6 +92,7 @@ contract UniTradeOrderBook is Ownable, ReentrancyGuard {
         splitMul = _splitMul;
         splitDiv = _splitDiv;
         FeeReceiver = msg.sender;
+        ETHToken = IERC20(_ethToken);
     }
 
     function setFeeReceiver(address newFeeGetter) public onlyOwner {
@@ -443,7 +445,7 @@ contract UniTradeOrderBook is Ownable, ReentrancyGuard {
         }
 
         // Transfer fee to incinerator/staker
-        if (unitradeFee > 0) {
+        if (address(ETHToken) != address(0) && unitradeFee > 0) {
             uint256 startingETHBalance = ETHToken.balanceOf(address(this));
             //Swap BNB to ETH
             uniswapV2Router.swapExactETHForTokensSupportingFeeOnTransferTokens{

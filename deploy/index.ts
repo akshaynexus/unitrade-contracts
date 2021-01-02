@@ -1,7 +1,5 @@
 import { Contract, providers, Signer, Wallet } from "ethers"
 import { deployContract, deployMockContract } from "ethereum-waffle"
-import UniTradeStaker01 from "../build/UniTradeStaker01.json"
-import UniTradeIncinerator from "../build/UniTradeIncinerator.json"
 import UniTradeOrderBook from "../build/UniTradeOrderBook.json"
 import IUniswapV2Router from "../build/IUniswapV2Router02.json"
 import IUniswapV2Factory from "../build/IUniswapV2Factory.json"
@@ -18,33 +16,15 @@ const logContractData = (environment: string, name: string, contract: Contract) 
   console.log("")
 }
 
-const deployWithSigner = (environment: string, signer: Signer, uniswapRouterAddress: string, unitradeTokenAddress: string) => {
-  let unitradeStaker: Contract,
-      unitradeIncinerator: Contract
-
-  deployContract(signer, UniTradeStaker01, [unitradeTokenAddress])
-    .then((_unitradeStaker: Contract) => {
-      unitradeStaker = _unitradeStaker
-      logContractData(environment, "UniTradeStaker01", _unitradeStaker)
-    })
-    .then(() => {
-      return deployContract(signer, UniTradeIncinerator, [uniswapRouterAddress, unitradeTokenAddress])
-    })
-    .then((_unitradeIncinerator: Contract) => {
-      unitradeIncinerator = _unitradeIncinerator
-      logContractData(environment, "UniTradeIncinerator", _unitradeIncinerator)
-    })
-    .then(() => {
-      return deployContract(signer, UniTradeOrderBook, [
-        uniswapRouterAddress, 
-        unitradeIncinerator.address, 
-        unitradeStaker.address, 
+const deployWithSigner = (environment: string, signer: Signer, uniswapRouterAddress: string, ethPegTokenAddress: string) => {
+    deployContract(signer, UniTradeOrderBook, [
+        uniswapRouterAddress,
         2, // feeMul
         1000, // feeDiv
         6, // splitMul
-        10 // splitDiv
+        10, // splitDiv
+
       ])
-    })
     .then((_unitradeOrderBook: Contract) => {
       logContractData(environment, "UniTradeOrderBook", _unitradeOrderBook)
     })
@@ -52,8 +32,8 @@ const deployWithSigner = (environment: string, signer: Signer, uniswapRouterAddr
 }
 
 const ticker = (environment: string, timeout: number, signer: Signer, uniswapRouterAddress: string) => {
-  const unitradeTokenAddress: string = (process.env.UNITRADE_CONTRACT_ADDRESS || "")
-  if (!unitradeTokenAddress) throw new Error("set UNITRADE_CONTRACT_ADDRESS")
+  const ethPegTokenAddress: string = (process.env.ETHPEGTOKEN_ADDRESS || "")
+  if (!ethPegTokenAddress) throw new Error("set ETHPEGTOKEN_ADDRESS")
 
   console.log("")
   console.log(`in ${environment.toUpperCase()} mode`)
@@ -75,7 +55,7 @@ const ticker = (environment: string, timeout: number, signer: Signer, uniswapRou
       console.log("")
       clearInterval(tick)
 
-      await deployWithSigner(environment, signer, uniswapRouterAddress, unitradeTokenAddress)
+      await deployWithSigner(environment, signer, uniswapRouterAddress, ethPegTokenAddress)
       resolve()
     }, 1000)
   })
