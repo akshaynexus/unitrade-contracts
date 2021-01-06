@@ -2,7 +2,6 @@ import { expect, use } from "chai"
 import { BigNumber, Contract } from "ethers"
 import { deployContract, deployMockContract, MockProvider, solidity } from "ethereum-waffle"
 import UniTradeOrderBook from "../build/UniTradeOrderBook.json"
-import UniTradeIncinerator from "../build/UniTradeIncinerator.json"
 import IUniTradeStaker from "../build/IUniTradeStaker.json"
 import { getUniswapPairAddress } from "./helpers"
 import IUniswapV2Factory from "../build/IUniswapV2Factory.json"
@@ -19,8 +18,6 @@ describe("UniTradeOrderBook E2T", () => {
   const [wallet, wallet2] = provider.getWallets()
   let mockUniswapV2Factory: Contract
   let mockUniswapV2Router: Contract
-  let mockIncinerator: Contract
-  let mockStaker: Contract
   let testWeth: Contract
   let tokenA: Contract
   let tokenB: Contract
@@ -33,8 +30,6 @@ describe("UniTradeOrderBook E2T", () => {
   beforeEach(async () => {
     mockUniswapV2Factory = await deployMockContract(wallet, IUniswapV2Factory.abi)
     mockUniswapV2Router = await deployMockContract(wallet, IUniswapV2Router.abi)
-    mockIncinerator = await deployMockContract(wallet, UniTradeIncinerator.abi)
-    mockStaker = await deployMockContract(wallet, IUniTradeStaker.abi)
     testWeth = await deployContract(wallet, TestERC20, ["WETH", "WETH"])
     tokenA = await deployContract(wallet, TestERC20, ["TokenA", "TKA"])
     await tokenA.mint(wallet.address, 100000000000)
@@ -47,7 +42,7 @@ describe("UniTradeOrderBook E2T", () => {
     orderBook = await deployContract(
       wallet,
       UniTradeOrderBook,
-      [mockUniswapV2Router.address, mockIncinerator.address, mockStaker.address, 1, 100, 6, 10],
+      [mockUniswapV2Router.address, 1, 100, 6, 10, zeroAddress],
       { gasLimit: 6721975 }
     )
   })
@@ -295,8 +290,6 @@ describe("UniTradeOrderBook E2T", () => {
           beforeEach(async () => {
             await mockUniswapV2Router.mock.swapExactETHForTokensSupportingFeeOnTransferTokens
               .withArgs(200, [params1[1], params1[2]], wallet.address, deadline).returns()
-            await mockIncinerator.mock.burn.returns(true)
-            await mockStaker.mock.deposit.returns()
             balanceBeforeExecute = await provider.getBalance(wallet2.address)
           })
 
@@ -316,14 +309,6 @@ describe("UniTradeOrderBook E2T", () => {
 
             it("emits an event", async () => {
               await expect(receipt).to.emit(orderBook, "OrderExecuted").withArgs(0, wallet2.address, [990, 0/*200*/], 10)
-            })
-
-            it("incinerator has balance", async () => {
-              expect(await provider.getBalance(mockIncinerator.address)).to.equal(6)
-            })
-
-            it("staker has balance", async () => {
-              expect(await provider.getBalance(mockStaker.address)).to.equal(4)
             })
 
             it("executor receives ether fee", async() => {

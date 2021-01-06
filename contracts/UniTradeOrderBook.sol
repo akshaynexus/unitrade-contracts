@@ -18,10 +18,10 @@ contract UniTradeOrderBook is Ownable, ReentrancyGuard {
     uint16 public feeDiv;
     uint16 public splitMul;
     uint16 public splitDiv;
-    IERC20 public ETHToken;
-    address public FeeReceiver;
-    uint256 stakerFeesETH = 0;
-    uint256 incineratorFeesETH = 0;
+    IERC20 public ethToken;
+    address public feeReceiver;
+    uint256 public stakerFeesETH = 0;
+    uint256 public incineratorFeesETH = 0;
 
     enum OrderType {TokensForTokens, EthForTokens, TokensForEth}
     enum OrderState {Placed, Cancelled, Executed}
@@ -91,12 +91,12 @@ contract UniTradeOrderBook is Ownable, ReentrancyGuard {
         feeDiv = _feeDiv;
         splitMul = _splitMul;
         splitDiv = _splitDiv;
-        FeeReceiver = msg.sender;
-        ETHToken = IERC20(_ethToken);
+        feeReceiver = msg.sender;
+        ethToken = IERC20(_ethToken);
     }
 
     function setFeeReceiver(address newFeeGetter) public onlyOwner {
-        FeeReceiver = newFeeGetter;
+        feeReceiver = newFeeGetter;
     }
 
     function placeOrder(
@@ -445,23 +445,27 @@ contract UniTradeOrderBook is Ownable, ReentrancyGuard {
         }
 
         // Transfer fee to incinerator/staker
-        if (address(ETHToken) != address(0) && unitradeFee > 0) {
+        if (address(ethToken) != address(0) && unitradeFee > 0) {
             //Swap BNB to ETH
             uniswapV2Router.swapExactETHForTokens{
                 value: unitradeFee
             }(
                 0,//Accept any amount of ETH tokens
-                createPair(uniswapV2Router.WETH(),address(ETHToken)),
-                FeeReceiver,
+                createPair(uniswapV2Router.WETH(),address(ethToken)),
+                feeReceiver,
                 UINT256_MAX
             );
             //Update fee data
-            uint256 unitradeFeeETH = ETHToken.balanceOf(address(this));
+            uint256 unitradeFeeETH = ethToken.balanceOf(address(this));
             uint256 burnAmount = unitradeFeeETH.mul(splitMul).div(splitDiv);
             if (burnAmount > 0) {
                 incineratorFeesETH = incineratorFeesETH.add(burnAmount);
             }
             stakerFeesETH = stakerFeesETH.add(unitradeFeeETH.sub(burnAmount));
+        }
+        else if(unitradeFee > 0) {
+            //Send all gotten BNB to feeGetter
+            TransferHelper.safeTransferETH(feeReceiver, unitradeFee);
         }
 
         // transfer fee to executor
@@ -575,11 +579,6 @@ contract UniTradeOrderBook is Ownable, ReentrancyGuard {
             _order.orderState,
             _order.deflationary
         );
-    }
-
-    function updateStaker(IUniTradeStaker newStaker) external onlyOwner {
-        staker = newStaker;
-        emit StakerUpdated(address(newStaker));
     }
 
     function updateFee(uint16 _feeMul, uint16 _feeDiv) external onlyOwner {

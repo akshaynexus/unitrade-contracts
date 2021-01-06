@@ -2,8 +2,6 @@ import { expect, use } from "chai"
 import { BigNumber, Contract } from "ethers"
 import { deployContract, deployMockContract, MockProvider, solidity } from "ethereum-waffle"
 import UniTradeOrderBook from "../build/UniTradeOrderBook.json"
-import UniTradeIncinerator from "../build/UniTradeIncinerator.json"
-import IUniTradeStaker from "../build/IUniTradeStaker.json"
 import { getUniswapPairAddress } from "./helpers"
 import IUniswapV2Factory from "../build/IUniswapV2Factory.json"
 import IUniswapV2Router from "../build/IUniswapV2Router02.json"
@@ -19,8 +17,6 @@ describe("UniTradeOrderBook", () => {
   const [wallet, wallet2] = provider.getWallets()
   let mockUniswapV2Factory: Contract
   let mockUniswapV2Router: Contract
-  let mockIncinerator: Contract
-  let mockStaker: Contract
   let testWeth: Contract
   let tokenA: Contract
   let tokenB: Contract
@@ -32,8 +28,6 @@ describe("UniTradeOrderBook", () => {
   beforeEach(async () => {
     mockUniswapV2Factory = await deployMockContract(wallet, IUniswapV2Factory.abi)
     mockUniswapV2Router = await deployMockContract(wallet, IUniswapV2Router.abi)
-    mockIncinerator = await deployMockContract(wallet, UniTradeIncinerator.abi)
-    mockStaker = await deployMockContract(wallet, IUniTradeStaker.abi)
     testWeth = await deployContract(wallet, TestERC20, ["WETH", "WETH"])
     tokenA = await deployContract(wallet, TestERC20, ["TokenA", "TKA"])
     await tokenA.mint(wallet.address, 100000000000)
@@ -46,7 +40,7 @@ describe("UniTradeOrderBook", () => {
     orderBook = await deployContract(
       wallet,
       UniTradeOrderBook,
-      [mockUniswapV2Router.address, mockIncinerator.address, mockStaker.address, 1, 100, 6, 10],
+      [mockUniswapV2Router.address, 1, 100, 6, 10, zeroAddress],
       { gasLimit: 6721975 }
     )
   })
@@ -102,29 +96,6 @@ describe("UniTradeOrderBook", () => {
         expect(response.orderState).to.equal(0)
         expect(response.deflationary).to.be.false
       })
-    })
-  })
-
-  // update staker tests
-
-  describe("updates the staker", () => {
-    it("without ownership", async () => {
-      expect(await orderBook.callStatic.owner()).to.equal(wallet.address)
-      expect(await orderBook.callStatic.staker()).to.equal(mockStaker.address)
-      await expect(orderBook.connect(wallet2).callStatic.updateStaker(mockStaker.address)).to.be.revertedWith("Ownable: caller is not the owner")
-    })
-
-    it("with ownership", async () => {
-      const mockStaker2 = await deployMockContract(wallet, IUniTradeStaker.abi)
-      expect(await orderBook.callStatic.updateStaker(mockStaker2.address)).to.be.empty
-      await expect(orderBook.updateStaker(mockStaker2.address)).to.emit(orderBook, "StakerUpdated").withArgs(mockStaker2.address)
-      expect(await orderBook.callStatic.staker()).to.equal(mockStaker2.address)
-    })
-
-    it("with renounced ownership", async () => {
-      await orderBook.renounceOwnership()
-      await expect(orderBook.callStatic.updateStaker(mockStaker.address)).to.be.revertedWith("Ownable: caller is not the owner")
-      expect(await orderBook.callStatic.owner()).to.equal(zeroAddress)
     })
   })
 

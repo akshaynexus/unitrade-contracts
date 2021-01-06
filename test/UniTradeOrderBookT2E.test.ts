@@ -2,8 +2,6 @@ import { expect, use } from "chai"
 import { BigNumber, Contract } from "ethers"
 import { deployContract, deployMockContract, MockProvider, solidity } from "ethereum-waffle"
 import UniTradeOrderBook from "../build/UniTradeOrderBook.json"
-import UniTradeIncinerator from "../build/UniTradeIncinerator.json"
-import IUniTradeStaker from "../build/IUniTradeStaker.json"
 import { getUniswapPairAddress } from "./helpers"
 import IUniswapV2Factory from "../build/IUniswapV2Factory.json"
 import IUniswapV2Router from "../build/IUniswapV2Router02.json"
@@ -19,8 +17,6 @@ describe("UniTradeOrderBook T2E", () => {
   const [wallet, wallet2] = provider.getWallets()
   let mockUniswapV2Factory: Contract
   let mockUniswapV2Router: Contract
-  let mockIncinerator: Contract
-  let mockStaker: Contract
   let testWeth: Contract
   let tokenA: Contract
   let tokenB: Contract
@@ -33,8 +29,6 @@ describe("UniTradeOrderBook T2E", () => {
   beforeEach(async () => {
     mockUniswapV2Factory = await deployMockContract(wallet, IUniswapV2Factory.abi)
     mockUniswapV2Router = await deployMockContract(wallet, IUniswapV2Router.abi)
-    mockIncinerator = await deployMockContract(wallet, UniTradeIncinerator.abi)
-    mockStaker = await deployMockContract(wallet, IUniTradeStaker.abi)
     testWeth = await deployContract(wallet, TestERC20, ["WETH", "WETH"])
     tokenA = await deployContract(wallet, TestERC20, ["TokenA", "TKA"])
     await tokenA.mint(wallet.address, 100000000000)
@@ -47,7 +41,7 @@ describe("UniTradeOrderBook T2E", () => {
     orderBook = await deployContract(
       wallet,
       UniTradeOrderBook,
-      [mockUniswapV2Router.address, mockIncinerator.address, mockStaker.address, 1, 100, 6, 10],
+      [mockUniswapV2Router.address, 1, 100, 6, 10, zeroAddress],
       { gasLimit: 6721975 }
     )
   })
@@ -329,8 +323,6 @@ describe("UniTradeOrderBook T2E", () => {
               .withArgs(1000, 2000, [params1[1], testWeth.address], orderBook.address, deadline)
               .returns([1000, 2000])
             await wallet.sendTransaction({ to: orderBook.address, value: 2000 }) //simulate uniswap Eth return
-            await mockIncinerator.mock.burn.returns(true)
-            await mockStaker.mock.deposit.returns()
             balanceBeforeExecute = await provider.getBalance(wallet2.address)
           })
 
@@ -350,14 +342,6 @@ describe("UniTradeOrderBook T2E", () => {
 
             it("emits an event", async () => {
               await expect(receipt).to.emit(orderBook, "OrderExecuted").withArgs(0, wallet2.address, [1000, 2000], 4)
-            })
-
-            it("incinerator has balance", async () => {
-              expect(await provider.getBalance(mockIncinerator.address)).to.equal(2)
-            })
-
-            it("staker has balance", async () => {
-              expect(await provider.getBalance(mockStaker.address)).to.equal(2)
             })
 
             it("executor receives ether fee", async() => {
@@ -657,8 +641,6 @@ describe("UniTradeOrderBook T2E", () => {
             //@todo check whether WETH token balance or contract ether balance used for result
             await mockUniswapV2Router.mock.swapExactTokensForETHSupportingFeeOnTransferTokens
               .withArgs(990, 2000, [params1[1], testWeth.address], orderBook.address, deadline).returns()
-            await mockIncinerator.mock.burn.returns(true)
-            await mockStaker.mock.deposit.returns()
             balanceBeforeExecute = await provider.getBalance(wallet2.address)
           })
 
@@ -678,14 +660,6 @@ describe("UniTradeOrderBook T2E", () => {
 
             it("emits an event", async () => {
               await expect(receipt).to.emit(orderBook, "OrderExecuted").withArgs(0, wallet2.address, [990, 0/*2000*/], 0/*20*/)
-            })
-
-            it("incinerator has balance", async () => {
-              expect(await provider.getBalance(mockIncinerator.address)).to.equal(0/*12*/)
-            })
-
-            it("staker has balance", async () => {
-              expect(await provider.getBalance(mockStaker.address)).to.equal(0/*8*/)
             })
 
             it("executor receives ether fee", async() => {

@@ -1,4 +1,5 @@
 import { Contract, providers, Signer, Wallet } from "ethers"
+const Web3 = require('web3');
 import { deployContract, deployMockContract } from "ethereum-waffle"
 import UniTradeOrderBook from "../build/UniTradeOrderBook.json"
 import IUniswapV2Router from "../build/IUniswapV2Router02.json"
@@ -23,7 +24,7 @@ const deployWithSigner = (environment: string, signer: Signer, uniswapRouterAddr
         1000, // feeDiv
         6, // splitMul
         10, // splitDiv
-
+        ethPegTokenAddress
       ])
     .then((_unitradeOrderBook: Contract) => {
       logContractData(environment, "UniTradeOrderBook", _unitradeOrderBook)
@@ -63,7 +64,8 @@ const ticker = (environment: string, timeout: number, signer: Signer, uniswapRou
 
 const publicDeploy = async (envName: string, envPrivateKey: string | undefined, timeout: number) => {
   if (!envPrivateKey) throw new Error(`Set ${envName.toUpperCase()}_DEPLOYMENT_PRIVATE_KEY`)
-  const provider: providers.BaseProvider = providers.getDefaultProvider(envName)
+  const mainnetweb3 : any =  new Web3.providers.HttpProvider("https://bsc-dataseed.binance.org/")
+  const provider: providers.BaseProvider = new providers.Web3Provider(mainnetweb3)
   const signer: Signer = new Wallet(envPrivateKey, provider)
   const uniswapRouterAddress: string = (process.env.UNISWAP_V2_ROUTER || "")
   if (!uniswapRouterAddress) throw new Error("set UNISWAP_V2_ROUTER")
